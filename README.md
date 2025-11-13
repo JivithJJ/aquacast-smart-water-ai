@@ -70,15 +70,15 @@ Includes:
 
   <br>
 
-  <img src="results/screenshots/home.png" alt="Home Page Screenshot" width="800">
+  <img src="results/screenshots/homepage.png" alt="Home Page Screenshot" width="800">
   <br>
-  <img src="results/screenshots/forecast7.png" alt="7-Day Forecast Screenshot" width="800">
+  <img src="results/screenshots/Forecast.png" alt="7-Day Forecast Screenshot" width="800">
   <br>
-  <img src="results/screenshots/budget30.png" alt="30-Day Budget Screenshot" width="800">
+  <img src="results/screenshots/Forecast30.png" alt="30-Day Budget Screenshot" width="800">
   <br>
   <img src="results/screenshots/sourcesplit.png" alt="Source Split Screenshot" width="800">
   <br>
-  <img src="results/screenshots/export.png" alt="Export Screenshot" width="800">
+  <img src="results/screenshots/exportpage.png" alt="Export Screenshot" width="800">
 
 </details>
 
