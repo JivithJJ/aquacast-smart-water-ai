@@ -5,9 +5,7 @@ import pandas as pd
 import joblib
 import pickle
 
-# ----------------------------------------
-# Load models + metadata
-# ----------------------------------------
+## LOADING MODELS AND METADATA
 with open("models/sarimax_model.pkl", "rb") as f:
     sar_model = pickle.load(f)
 
@@ -21,26 +19,14 @@ residual_feature_cols = meta["residual_feature_cols"]
 train_columns = meta["train_columns"]
 
 
-# ----------------------------------------
-# Helper: build engineered features (keeps date safe)
-# ----------------------------------------
 def prepare_features(df):
     df = df.copy()
-
-    # Ensure date is datetime (important)
     df["date"] = pd.to_datetime(df["date"])
-
-    # weekend flag (will be numeric)
     df["is_weekend"] = df["date"].dt.weekday.isin([5, 6]).astype(int)
-
-    # lag features based on tanker_litres
     for lag in [1, 2, 3, 7, 14, 21]:
         df[f"tanker_lag_{lag}"] = df["tanker_litres"].shift(lag)
-
-    # Replace inf with NaN
     df = df.replace([np.inf, -np.inf], np.nan)
-
-    # --- Preserve date, coerce other columns to numeric safely ---
+    
     date_col = df["date"].copy()
     other = df.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
     df = pd.concat([date_col, other], axis=1)
@@ -48,9 +34,6 @@ def prepare_features(df):
     return df
 
 
-# ----------------------------------------
-# ensure a row (Series) is numeric but keep date
-# ----------------------------------------
 def force_numeric_keep_date(row):
     row = row.copy()
     date_val = row.get("date", None)
@@ -75,9 +58,6 @@ def force_numeric_keep_date(row):
     return row
 
 
-# ========================================
-#     7-DAY FORECAST
-# ========================================
 def forecast_next_7_days(df_raw):
 
     # 1) build features and keep date
@@ -130,9 +110,9 @@ def forecast_next_7_days(df_raw):
     return dates, preds
 
 
-# ========================================
-#     30-DAY FORECAST
-# ========================================
+
+# 30-DAY FORECAST
+
 def forecast_next_30_days(df_raw):
 
     df = prepare_features(df_raw)

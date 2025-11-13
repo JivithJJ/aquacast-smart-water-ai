@@ -1,16 +1,19 @@
-<p align="center">
-  <b>💧 AI-powered forecasting & cost optimization for apartment water management</b><br>
-  Hybrid SARIMAX + Gradient Boosting • 7/30-day tanker forecasts • Dynamic pricing • Source split analytics • Interactive Streamlit Dashboard
-</p>
+#  AquaCast
+
+**AI-powered Forecasting & Cost Optimization for Apartment Water Management**
+
+*Hybrid SARIMAX + Gradient Boosting • 7/30-day Tanker Forecasts • Dynamic Pricing • Source Split Analytics*  
+
+**Interactive Streamlit Dashboard**
 
 ---
 
-## 🚀 Overview
+##  Overview
 
 **AquaCast** is an AI-driven water forecasting system designed for RWAs, apartment communities, and water administrators.
 
 It combines:
-- 📈 **SARIMAX** time-series forecasting  
+-  **SARIMAX** time-series forecasting  
 -  **GBM** residual correction (Hybrid ML)  
 -  **Dynamic tanker price modeling**  
 -  **30-day cost optimization planner**  
@@ -62,6 +65,23 @@ Includes:
 - Downloadable CSV reports  
 
 ---
+<details>
+  <summary>View All Screenshots</summary>
+
+  <br>
+
+  <img src="results/screenshots/home.png" alt="Home Page Screenshot" width="800">
+  <br>
+  <img src="results/screenshots/forecast7.png" alt="7-Day Forecast Screenshot" width="800">
+  <br>
+  <img src="results/screenshots/budget30.png" alt="30-Day Budget Screenshot" width="800">
+  <br>
+  <img src="results/screenshots/sourcesplit.png" alt="Source Split Screenshot" width="800">
+  <br>
+  <img src="results/screenshots/export.png" alt="Export Screenshot" width="800">
+
+</details>
+
 
 ##  Author
 Developed by **Jithesh M**  

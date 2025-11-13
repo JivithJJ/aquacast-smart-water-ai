@@ -1,90 +1,157 @@
-import pandas as pd
-import numpy as np
-import pickle
-import joblib
-from datetime import timedelta
-from modules.utils import add_lag_features
+# modules/forecast.py
 
-# ------------------------------
-# Load models & metadata
-# ------------------------------
-with open(".../models/sarimax_model.pkl", "rb") as f:
+import numpy as np
+import pandas as pd
+import joblib
+import pickle
+
+## LOADING MODELS AND METADATA
+with open("models/sarimax_model.pkl", "rb") as f:
     sar_model = pickle.load(f)
 
-gbm_model = joblib.load("../models/gbm_model.pkl")
+gbm_model = joblib.load("models/gbm_model.pkl")
 
-with open("../models/model_metadata.pkl", "rb") as f:
-    metadata = pickle.load(f)
+with open("models/model_metadata.pkl", "rb") as f:
+    meta = pickle.load(f)
 
-feature_cols = metadata["feature_cols"]
-res_cols = metadata["residual_feature_cols"]
+feature_cols = meta["feature_cols"]
+residual_feature_cols = meta["residual_feature_cols"]
+train_columns = meta["train_columns"]
 
-# ------------------------------
-# 7-day rolling forecast
-# ------------------------------
-def forecast_next_7_days(df):
-    df_fc = df.copy()
+
+def prepare_features(df):
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df["is_weekend"] = df["date"].dt.weekday.isin([5, 6]).astype(int)
+    for lag in [1, 2, 3, 7, 14, 21]:
+        df[f"tanker_lag_{lag}"] = df["tanker_litres"].shift(lag)
+    df = df.replace([np.inf, -np.inf], np.nan)
+    
+    date_col = df["date"].copy()
+    other = df.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
+    df = pd.concat([date_col, other], axis=1)
+
+    return df
+
+
+def force_numeric_keep_date(row):
+    row = row.copy()
+    date_val = row.get("date", None)
+    # Keep date as-is
+    # Coerce other entries
+    for k in row.index:
+        if k == "date":
+            continue
+        v = row[k]
+        # replace inf / -inf / nan with 0
+        if pd.isna(v) or v in [np.inf, -np.inf]:
+            row[k] = 0.0
+            continue
+        # convert to float if possible
+        try:
+            row[k] = float(v)
+        except Exception:
+            row[k] = 0.0
+    # restore date
+    if date_val is not None:
+        row["date"] = pd.to_datetime(date_val)
+    return row
+
+
+def forecast_next_7_days(df_raw):
+
+    # 1) build features and keep date
+    df = prepare_features(df_raw)
+
+    # 2) ensure non-date columns numeric
+    date_col = df["date"].copy()
+    df_other = df.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
+    df = pd.concat([date_col, df_other], axis=1)
+
+    # 3) history window
+    history = df.copy().tail(30).reset_index(drop=True)
+
     preds = []
     dates = []
 
-    last_date = df_fc["date"].max()
-
     for step in range(7):
-        df_fc = add_lag_features(df_fc)
+        latest = history.iloc[-1].copy()
+        latest = force_numeric_keep_date(latest)
 
-        latest = df_fc.iloc[-1]
+        # SARIMAX exog (force float)
+        X_sar = latest[feature_cols].astype(float).values.reshape(1, -1)
+        sar_pred_raw = sar_model.forecast(steps=1, exog=X_sar)
+        sar_pred = float(np.array(sar_pred_raw).flatten()[0])
 
-        X_sar = latest[feature_cols].values.reshape(1, -1)
-        X_gbm = latest[res_cols].values.reshape(1, -1)
+        # GBM residual
+        X_gbm = latest[residual_feature_cols].astype(float).values.reshape(1, -1)
+        gbm_res = float(gbm_model.predict(X_gbm)[0])
 
-        sar_pred = sar_model.predict(start=sar_model.nobs, end=sar_model.nobs, exog=X_sar).iloc[0]
-        gbm_pred = gbm_model.predict(X_gbm)[0]
-
-        final_pred = sar_pred + gbm_pred
+        final_pred = sar_pred + gbm_res
         preds.append(final_pred)
 
-        next_date = last_date + timedelta(days=step+1)
+        # compute next date (latest["date"] is datetime)
+        next_date = pd.to_datetime(latest["date"]) + pd.Timedelta(days=1)
         dates.append(next_date)
 
+        # append new row for rolling history
         new_row = latest.copy()
         new_row["date"] = next_date
         new_row["tanker_litres"] = final_pred
 
-        df_fc = pd.concat([df_fc, new_row.to_frame().T], ignore_index=True)
+        history = pd.concat([history, new_row.to_frame().T], ignore_index=True)
+
+        # rebuild engineered features on history and keep date safe
+        history = prepare_features(history)
+        date_col = history["date"].copy()
+        history_other = history.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
+        history = pd.concat([date_col, history_other], axis=1).reset_index(drop=True)
 
     return dates, preds
 
-# ------------------------------
-# 30-day forecast (budget)
-# ------------------------------
-def forecast_next_30_days(df):
-    df_fc = df.copy()
+
+
+# 30-DAY FORECAST
+
+def forecast_next_30_days(df_raw):
+
+    df = prepare_features(df_raw)
+    date_col = df["date"].copy()
+    df_other = df.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
+    df = pd.concat([date_col, df_other], axis=1)
+
+    history = df.copy().tail(30).reset_index(drop=True)
+
     preds = []
     dates = []
 
-    last_date = df_fc["date"].max()
-
     for step in range(30):
-        df_fc = add_lag_features(df_fc)
 
-        latest = df_fc.iloc[-1]
+        latest = history.iloc[-1].copy()
+        latest = force_numeric_keep_date(latest)
 
-        X_sar = latest[feature_cols].values.reshape(1, -1)
-        X_gbm = latest[res_cols].values.reshape(1, -1)
+        X_sar = latest[feature_cols].astype(float).values.reshape(1, -1)
+        sar_pred_raw = sar_model.forecast(steps=1, exog=X_sar)
+        sar_pred = float(np.array(sar_pred_raw).flatten()[0])
 
-        sar_pred = sar_model.predict(start=sar_model.nobs, end=sar_model.nobs, exog=X_sar).iloc[0]
-        gbm_pred = gbm_model.predict(X_gbm)[0]
+        X_gbm = latest[residual_feature_cols].astype(float).values.reshape(1, -1)
+        gbm_res = float(gbm_model.predict(X_gbm)[0])
 
-        final_pred = sar_pred + gbm_pred
+        final_pred = sar_pred + gbm_res
         preds.append(final_pred)
 
-        next_date = last_date + timedelta(days=step+1)
+        next_date = pd.to_datetime(latest["date"]) + pd.Timedelta(days=1)
         dates.append(next_date)
 
         new_row = latest.copy()
         new_row["date"] = next_date
         new_row["tanker_litres"] = final_pred
 
-        df_fc = pd.concat([df_fc, new_row.to_frame().T], ignore_index=True)
+        history = pd.concat([history, new_row.to_frame().T], ignore_index=True)
+
+        history = prepare_features(history)
+        date_col = history["date"].copy()
+        history_other = history.drop(columns=["date"]).apply(pd.to_numeric, errors="coerce").fillna(0)
+        history = pd.concat([date_col, history_other], axis=1).reset_index(drop=True)
 
     return dates, preds

@@ -47,6 +47,8 @@ page = st.sidebar.radio("Navigate", ["Home", "7-Day Forecast", "30-Day Budget Pl
 # -------------------------
 if page == "Home":
     st.title(" AquaCast — Smart Water Intelligence")
+    st.subheader("AI that predicts water demand and reduces cost.")
+
     st.markdown(
         """
         AquaCast combines time-series forecasting (SARIMAX) + ML residual correction (GBM),
@@ -204,4 +206,4 @@ if page == "Export & Notes":
 # Footer
 # -------------------------
 st.sidebar.markdown("---")
-st.sidebar.caption("AquaCast • Demo (For interviews & portfolios)")
+st.sidebar.caption("AquaCast")
