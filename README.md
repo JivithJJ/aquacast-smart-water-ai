@@ -6,6 +6,8 @@
 
 **Interactive Streamlit Dashboard**
 
+[![Streamlit Demo](https://img.shields.io/badge/Streamlit-Demo-orange?logo=streamlit)](https://aquacast-smart-water-ai.streamlit.app/)
+
 ---
 
 ##  Overview
